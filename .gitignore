@@ -39,3 +39,13 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# Expo shared
+.expo-shared/
+
+# logs
+*.log
+
+# env (ถ้าใช้ไฟล์ .env จริง แนะนำ ignore ให้หมด)
+.env
+.env.*
