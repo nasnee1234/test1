@@ -45,7 +45,7 @@ export default function HomeScreen() {
    // View หลักของหน้าจอ
    <View style={styles.container}>
      {/* ข้อความหัวข้อ "News" */}
-     <Text style={styles.header}>News again plss</Text>
+     <Text style={styles.header}>News again plss</Text> 
      {/* ถ้าอยู่ในสถานะโหลดให้แสดง ActivityIndicator ถ้าโหลดเสร็จให้แสดง FlatList */}
      {loading ? (
        <ActivityIndicator size="large" color="#ff6600" />
