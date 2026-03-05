@@ -1,78 +1,149 @@
-import { useEffect, useState } from 'react';
-import { View, Text, Image, FlatList, StyleSheet, ActivityIndicator, Dimensions } from 'react-native';
+import React from 'react';
+import {
+  SafeAreaView,
+  ScrollView,
+  View,
+  Text,
+  StyleSheet,
+  Image,
+  TouchableOpacity,
+  Dimensions,
+  Platform,
+  StatusBar,
+} from 'react-native';
+import { MaterialIcons } from '@expo/vector-icons';
 
-const API_KEY = '38c06c561698401c9d1ed25447e9c209'; // เปลี่ยนเป็น API Key ของผู้เรียน
-const NEWS_URL = `https://newsapi.org/v2/top-headlines?sources=techcrunch&apiKey=${API_KEY}`;
+const { width } = Dimensions.get('window');
 
-const screenWidth = Dimensions.get('window').width;
+export default function HomeScreen({ navigation }) {
+  const iconMap = {
+    Fill: 'edit',
+    Vote: 'how-to-vote',
+    Redeem: 'card-giftcard',
+    'My Calendar': 'calendar-today',
+    Place: 'place',
+    Reservation: 'event',
+  };
+  return (
+    <SafeAreaView style={styles.safe}>
+      <View style={styles.header}>
+        <Image
+          source={{ uri: 'https://via.placeholder.com/44' }}
+          style={styles.avatar}
+        />
+        <Image
+          source={{ uri: 'https://via.placeholder.com/80x28?text=Logo' }}
+          style={styles.logo}
+          resizeMode="contain"
+        />
+        <View style={styles.headerRight}>
+          <TouchableOpacity style={styles.iconBtn}>
+            <MaterialIcons name="search" size={20} color="#333" />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.iconBtn}>
+            <MaterialIcons name="notifications-none" size={20} color="#333" />
+          </TouchableOpacity>
+        </View>
+      </View>
 
-export default function HomeScreen() {
+      <ScrollView contentContainerStyle={styles.content}>
+        <Text style={styles.sectionTitle}>What's New</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.carousel}>
+          <View style={styles.cardSmall} />
+          <View style={[styles.cardSmall, { backgroundColor: '#cde' }]} />
+          <View style={[styles.cardSmall, { backgroundColor: '#dec' }]} />
+        </ScrollView>
 
- const [news, setNews] = useState([]);
- const [loading, setLoading] = useState(true);
- useEffect(() => {
-   fetch(NEWS_URL)
-     .then(res => res.json())
-     .then(data => {
-       setNews(data.articles || []); // เก็บข้อมูลข่าวใน state
-       setLoading(false); // ปิดสถานะโหลดเมื่อได้ข้อมูล
-     })
-     .catch(err => {
-       console.error(err); // แสดง error ใน console
-       setLoading(false); // ปิดสถานะโหลดเมื่อเกิด error
-     });
- }, []);
+        <Text style={styles.sectionTitle}>Service</Text>
+        <View style={styles.servicesGrid}>
+          {['Fill', 'Vote', 'Redeem', 'My Calendar', 'Place', 'Reservation'].map((s, i) => (
+            <TouchableOpacity
+              key={i}
+              style={styles.serviceItem}
+              onPress={() => {
+                if (s === 'Vote') navigation.navigate('Vote');
+              }}
+            >
+              <View style={styles.serviceIcon}>
+                <MaterialIcons name={iconMap[s]} size={28} color="#0766f7" />
+              </View>
+              <Text style={styles.serviceText}>{s}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
 
- const renderItem = ({ item }) => (
-   <View style={styles.card}>
-     {/* แสดงรูปภาพข่าว ถ้าไม่มีให้แสดงข้อความ "No Image" */}
-     {item.urlToImage ? (
-       <Image source={{ uri: item.urlToImage }} style={styles.image} />
-     ) : (
-       <View style={[styles.image, styles.noImage]}>
-         <Text style={{ color: '#888' }}>No Image</Text>
-       </View>
-     )}
-     {/* กล่องข้อความสำหรับหัวข้อและคำอธิบายข่าว */}
-     <View style={styles.textBox}>
-       <Text style={styles.title}>{item.title}</Text>
-       <Text style={styles.description} numberOfLines={2}>{item.description || 'ไม่มีคำอธิบาย'}</Text>
-     </View>
-   </View>
- );
+        <Text style={styles.sectionTitle}>Upcoming Appointment</Text>
+        <View style={styles.appointmentCard}>
+          <Text style={styles.appointTitle}>No appointment</Text>
+          <Text style={styles.appointSubtitle}>You have no upcoming appointments.</Text>
+        </View>
 
- return (
-   // View หลักของหน้าจอ
-   <View style={styles.container}>
-     {/* ข้อความหัวข้อ "News" */}
-     <Text style={styles.header}>News again plss</Text> 
-     {/* ถ้าอยู่ในสถานะโหลดให้แสดง ActivityIndicator ถ้าโหลดเสร็จให้แสดง FlatList */}
-     {loading ? (
-       <ActivityIndicator size="large" color="#ff6600" />
-     ) : (
-       <FlatList
-         data={news} // ข้อมูลข่าว
-         keyExtractor={(item, index) => index.toString()} // กำหนด key ของแต่ละรายการ
-         renderItem={renderItem} // ฟังก์ชันสำหรับแสดงแต่ละรายการ
-         contentContainerStyle={{ paddingBottom: 16 }} // กำหนด padding ด้านล่าง
-       />
-     )}
-   </View>
- );
+        <View style={{ height: 80 }} />
+      </ScrollView>
+
+    </SafeAreaView>
+  );
 }
 
 const styles = StyleSheet.create({
+  safe: { flex: 1, backgroundColor: '#f6f8fb', paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0 },
+  header: {
+    height: 72,
+    paddingHorizontal: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  avatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#eee' },
+  logo: { width: 100, height: 28 },
+  headerRight: { flexDirection: 'row', alignItems: 'center' },
+  iconPlaceholder: { width: 34, height: 34, borderRadius: 8, backgroundColor: '#e6eef8', marginLeft: 8 },
+  iconBtn: { width: 34, height: 34, borderRadius: 8, backgroundColor: '#e6eef8', marginLeft: 8, alignItems: 'center', justifyContent: 'center' },
 
- container: { flex: 1, padding: 16, backgroundColor: '#f9f9f9' },
- header: { fontSize: 20, fontWeight: 'bold', marginBottom: 12 },
- card: { backgroundColor: '#fff', borderRadius: 8, marginBottom: 16, 
-   overflow: 'hidden', elevation: 3, shadowColor: '#000', 
-   shadowOpacity: 0.1, shadowOffset: { width: 0, height: 1 }, 
-   shadowRadius: 3 },
- image: { width: '100%', height: screenWidth * 0.5, 
-          backgroundColor: '#ddd' },
- noImage: { justifyContent: 'center', alignItems: 'center' },
- textBox: { padding: 12 },
- title: { fontSize: 16, fontWeight: '600', marginBottom: 4 },
- description: { fontSize: 14, color: '#555' },
+  content: { paddingHorizontal: 16, paddingBottom: 20 },
+  sectionTitle: { fontSize: 16, fontWeight: '700', marginTop: 8, marginBottom: 8 },
+  carousel: { marginBottom: 12 },
+  cardSmall: {
+    width: Math.round(width * 0.7),
+    height: 120,
+    borderRadius: 12,
+    backgroundColor: '#d8eef0',
+    marginRight: 12,
+  },
+
+  servicesGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
+  serviceItem: { width: '30%', alignItems: 'center', marginVertical: 10 },
+  serviceIcon: { width: 56, height: 56, borderRadius: 28, backgroundColor: '#fff', elevation: 2, alignItems: 'center', justifyContent: 'center' },
+  serviceText: { marginTop: 8, textAlign: 'center', fontSize: 12 },
+
+  appointmentCard: { backgroundColor: '#fff', padding: 16, borderRadius: 12, marginTop: 8 },
+  appointTitle: { fontSize: 16, fontWeight: '700' },
+  appointSubtitle: { marginTop: 6, color: '#666' },
+
+  fab: {
+    position: 'absolute',
+    bottom: 42,
+    left: (width - 64) / 2,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#0766f7',
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 6,
+  },
+  fabText: { color: '#fff', fontSize: 28, lineHeight: 32 },
+
+  bottomNav: {
+    height: 64,
+    backgroundColor: '#fff',
+    borderTopWidth: 0.5,
+    borderColor: '#ddd',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-around',
+    paddingHorizontal: 8,
+  },
+  navItem: { alignItems: 'center' },
+  navText: { fontSize: 12, color: '#333' },
 });

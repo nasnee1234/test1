@@ -1,40 +1,128 @@
+import React from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View, TouchableOpacity, Platform, Text } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import HomeScreen from './screens/HomeScreen';
-import SearchScreen from './screens/SearchScreen';
-import NotificationScreen from './screens/NotificationScreen'; 
-import ProfileScreen from './screens/ProfileScreen';
-import { Ionicons } from '@expo/vector-icons';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { MaterialIcons } from '@expo/vector-icons';
 
+import HomeScreen from './src/screens/HomeScreen';
+import VoteScreen from './src/screens/VoteScreen';
+import VoteDetail from './src/screens/VoteDetail';
+import CardScreen from './src/screens/CardScreen';
+import CameraScreen from './src/screens/CameraScreen';
+import ChallengeScreen from './src/screens/ChallengeScreen';
+import SettingScreen from './src/screens/SettingScreen';
 
+const Tab = createBottomTabNavigator();
+const Stack = createNativeStackNavigator();
 
-const Tab = createBottomTabNavigator(); 
-
-export default function App() { 
- return (
-     <NavigationContainer> 
-     <Tab.Navigator 
-        screenOptions={({ route }) => ({  
-           tabBarIcon: ({ color, size }) => { 
-             let iconName;
-                if (route.name === 'Home') iconName = 'home-outline'; 
-       else if (route.name === 'Search') iconName = 'search-outline';
-       else if (route.name === 'Notifications') iconName = 'notifications-outline';
-       else if (route.name === 'Profile') iconName = 'person-outline';
-              return <Ionicons name={iconName} size={size} color={color} />; 
-         },
-         tabBarActiveTintColor: '#ff6600', 
-         tabBarInactiveTintColor: 'gray',  
-         headerShown: false, 
-       })}
-     >
-       <Tab.Screen name="Home" component={HomeScreen} /> 
-       <Tab.Screen name="Search" component={SearchScreen} />
-       <Tab.Screen name="Notifications" component={NotificationScreen} />
-       <Tab.Screen name="Profile" component={ProfileScreen} />
-     </Tab.Navigator>
-   </NavigationContainer>
- );
+function HomeStack() {
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="HomeMain" component={HomeScreen} />
+      <Stack.Screen name="Vote" component={VoteScreen} />
+      <Stack.Screen name="VoteDetail" component={VoteDetail} />
+    </Stack.Navigator>
+  );
 }
+
+export default function App() {
+  return (
+    <NavigationContainer>
+      <Tab.Navigator
+        screenOptions={{
+          headerShown: false,
+          tabBarShowLabel: true,
+          tabBarActiveTintColor: '#0766f7',
+          tabBarInactiveTintColor: '#999',
+          tabBarLabelStyle: { fontSize: 11, marginTop: 2 },
+          tabBarStyle: { height: 64, backgroundColor: '#fff', borderTopWidth: 0.5, borderColor: '#eee', elevation: 0, paddingBottom: Platform.OS === 'android' ? 8 : 12 },
+        }}
+      >
+        <Tab.Screen
+          name="Home"
+          component={HomeStack}
+          options={{
+            tabBarIcon: ({ color, siz}) => (
+              <View style={{ alignItems: 'center' }}>
+                  <MaterialIcons name="home" size={20} />
+              </View>
+            ),
+          }}
+        />
+        <Tab.Screen
+          name="Card"
+          component={CardScreen}
+          options={{
+            tabBarIcon: ({ color, size}) => (
+              <View style={{ alignItems: 'center' }}>
+                
+                  <MaterialIcons name="credit-card" size={20}  />
+                
+              </View>
+            ),
+          }}
+        />
+        <Tab.Screen
+          name="Camera"
+          component={CameraScreen}
+          options={{
+            tabBarButton: (props) => {
+              return (
+                <TouchableOpacity
+                  onPress={props.onPress}
+                  style={{ top: -28, justifyContent: 'center', alignItems: 'center' }}
+                >
+                  <View style={styles.fab}>
+                    <MaterialIcons name="photo-camera" size={28} color="#fff" />
+                  </View>
+                </TouchableOpacity>
+              );
+            },
+          }}
+        />
+        <Tab.Screen
+          name="Challenge"
+          component={ChallengeScreen}
+          options={{
+            tabBarIcon: ({ color, size }) => (
+              <View style={{ alignItems: 'center' }}>
+                  <MaterialIcons name="emoji-events" size={20} />
+              </View>
+            ),
+          }}
+        />
+        <Tab.Screen
+          name="Setting"
+          component={SettingScreen}
+          options={{
+            tabBarIcon: ({ color, size}) => (
+              <View style={{ alignItems: 'center' }}>
+                  <MaterialIcons name="settings" size={20} />
+              </View>
+            ),
+          }}
+        />
+      </Tab.Navigator>
+      <StatusBar style="auto" />
+    </NavigationContainer>
+  );
+}
+
+const styles = StyleSheet.create({
+  fab: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#0766f7',
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+  },
+  centerLabel: { marginTop: 6, fontSize: 11 },
+});
