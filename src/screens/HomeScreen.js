@@ -85,7 +85,7 @@ export default function HomeScreen({
 }) {
   const listRef = useRef(null);
   const [activeIndex, setActiveIndex] = useState(0);
-
+  
   const services = useMemo(
     () => [
       { key: "vote", label: "ระบบโหวต", icon: "checkmark-done" },
