@@ -44,7 +44,7 @@ export default function VoteDetail({ navigation }) {
 
       <ScrollView contentContainerStyle={styles.content}>
         <Image
-          source={{ uri: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTmoL_gruMInRo6PWJAKJSwEOAqhogfWUY--g&s' }}
+          source={{ uri: 'https://via.placeholder.com/350x140' }}
           style={styles.banner}
           resizeMode="cover"
         />
@@ -106,8 +106,8 @@ export default function VoteDetail({ navigation }) {
             <TouchableOpacity style={styles.modalClose} onPress={handleCloseModal}>
               <MaterialIcons name="close" size={20} color="#444" />
             </TouchableOpacity>
-            <Text style={styles.modalTitle}>ยินดีด้วยนะ!!</Text>
-            <Text style={styles.modalSubtitle}>คุณได้โหวตลงคะแนนเสร็จเรียบร้อยแล้ว </Text>
+            <Text style={styles.modalTitle}>Congrats!</Text>
+            <Text style={styles.modalSubtitle}>You have successfully completed the vote</Text>
             <View style={styles.modalGraphic}>
               <View style={styles.giftBox}>
                 <View style={styles.ribbonHorizontal} />
@@ -115,7 +115,7 @@ export default function VoteDetail({ navigation }) {
                 <View style={styles.ribbonKnot} />
               </View>
             </View>
-            <Text style={styles.modalEarn}>ได้รับ 20 คะแนน</Text>
+            <Text style={styles.modalEarn}>Earned 0 Points</Text>
             <Text style={styles.modalProject}>โครงการช่วยเปิดปิดนักศึกษาฝึกงาน ปีการศึกษา 2568</Text>
           </View>
         </View>
