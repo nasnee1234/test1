@@ -17,6 +17,7 @@ import SettingScreen from './src/screens/SettingScreen';
 import Login from './src/screens/Login';
 import Register from './src/screens/Register';
 import ChallengeDetailScreen from './src/screens/ChallengeDetailScreen';
+import SearchScreen from './src/screens/SearchScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -123,6 +124,7 @@ export default function App() {
           <Stack.Screen name="Vote" component={VoteScreen} />
           <Stack.Screen name="VoteDetail" component={VoteDetail} />
           <Stack.Screen name="ChallengeDetail" component={ChallengeDetailScreen} />
+          <Stack.Screen name="Search" component={SearchScreen} />
         </Stack.Navigator>
         <StatusBar style="auto" />
       </NavigationContainer>

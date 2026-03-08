@@ -22,7 +22,10 @@ function Login() {
     try {
       setLoading(true);
       await login(email, password);
-      navigation.navigate('Main');
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'MainTabs' }],
+      });
     } catch (err) {
       const msg = err && err.message ? err.message : 'เกิดข้อผิดพลาดในการเข้าสู่ระบบ';
       setError(msg);

@@ -142,8 +142,10 @@ export default function HomeScreen({ navigation }) {
         </View>
 
         <View style={styles.headerRight}>
-          <TouchableOpacity style={styles.iconBtn}>
-            <MaterialIcons name="search" size={20} color="#1e3a8a" />
+          <TouchableOpacity
+            style={styles.topActionBtn}
+            onPress={() => navigation.navigate('Search')}>
+            <MaterialIcons name="search" size={22} color="#2563EB" />
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.iconBtn}>
