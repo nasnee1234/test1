@@ -122,10 +122,7 @@ export default function App() {
           <Stack.Screen name="Register" component={Register} />
           <Stack.Screen name="Vote" component={VoteScreen} />
           <Stack.Screen name="VoteDetail" component={VoteDetail} />
-          <Stack.Screen
-            name="ChallengeDetail"
-            component={ChallengeDetailScreen}
-          />
+          <Stack.Screen name="ChallengeDetail" component={ChallengeDetailScreen} />
         </Stack.Navigator>
         <StatusBar style="auto" />
       </NavigationContainer>
