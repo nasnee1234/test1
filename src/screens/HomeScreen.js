@@ -22,10 +22,8 @@ const { width } = Dimensions.get('window');
 
 export default function HomeScreen({ navigation }) {
   const [votesCount, setVotesCount] = useState(0);
-  const { logOut, user } = useUserAuth();
+  const { logOut, logout, user } = useUserAuth();
 
-  // ===== Banner โฆษณา / ประชาสัมพันธ์ =====
-  // เปลี่ยน image และ link ได้ตามต้องการ
   const newsBanners = [
     {
       id: 1,
@@ -72,7 +70,13 @@ export default function HomeScreen({ navigation }) {
 
   const handleLogout = async () => {
     try {
-      await logOut();
+      const logoutFn = logout || logOut;
+      if (!logoutFn) {
+        Alert.alert('Error', 'ไม่พบฟังก์ชันออกจากระบบ');
+        return;
+      }
+
+      await logoutFn();
 
       let rootNav = navigation;
       while (rootNav && rootNav.getParent && rootNav.getParent() != null) {
@@ -107,12 +111,12 @@ export default function HomeScreen({ navigation }) {
   };
 
   const services = [
-    { label: 'แบบฟอร์ม', icon: 'edit-note', action: () => Alert.alert('เมนูแบบฟอร์ม') },
+    { label: 'แบบฟอร์ม', icon: 'edit-note', action: () => navigation.navigate('Form') },
     { label: 'โหวต', icon: 'how-to-vote', action: () => navigation.navigate('Vote') },
-    { label: 'บัตร/สิทธิ์', icon: 'badge', action: () => Alert.alert('เมนูบัตร/สิทธิ์') },
-    { label: 'ปฏิทิน', icon: 'calendar-month', action: () => Alert.alert('เมนูปฏิทิน') },
-    { label: 'สถานที่', icon: 'place', action: () => Alert.alert('เมนูสถานที่') },
-    { label: 'กิจกรรม', icon: 'event-available', action: () => Alert.alert('เมนูกิจกรรม') },
+    { label: 'บัตร/สิทธิ์', icon: 'badge', action: () => navigation.navigate('Card') },
+    { label: 'ปฏิทิน', icon: 'calendar-month', action: () => Alert.alert('เมนูปฏิทิน', 'ยังไม่ได้สร้างหน้าปฏิทิน') },
+    { label: 'สถานที่', icon: 'place', action: () => Alert.alert('เมนูสถานที่', 'ยังไม่ได้สร้างหน้าสถานที่') },
+    { label: 'กิจกรรม', icon: 'event-available', action: () => navigation.navigate('Challenge') },
   ];
 
   return (
@@ -144,7 +148,8 @@ export default function HomeScreen({ navigation }) {
         <View style={styles.headerRight}>
           <TouchableOpacity
             style={styles.topActionBtn}
-            onPress={() => navigation.navigate('Search')}>
+            onPress={() => navigation.navigate('Search')}
+          >
             <MaterialIcons name="search" size={22} color="#2563EB" />
           </TouchableOpacity>
 
@@ -161,7 +166,6 @@ export default function HomeScreen({ navigation }) {
       </View>
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        {/* ===== โลโก้ / แบนเนอร์สถาบัน ===== */}
         <View style={styles.topBanner}>
           <View style={styles.topBannerTextBox}>
             <Text style={styles.topBannerSmall}>วิทยาลัยอาชีวศึกษา</Text>
@@ -170,10 +174,8 @@ export default function HomeScreen({ navigation }) {
               ระบบข่าวสาร ประชาสัมพันธ์ กิจกรรม และบริการสำหรับนักเรียน นักศึกษา
             </Text>
           </View>
-          
         </View>
 
-        {/* ===== ข่าวสาร / โฆษณา ===== */}
         <Text style={styles.sectionTitle}>ประชาสัมพันธ์</Text>
         <ScrollView
           horizontal
@@ -197,7 +199,6 @@ export default function HomeScreen({ navigation }) {
           ))}
         </ScrollView>
 
-        {/* ===== เมนูบริการ ===== */}
         <Text style={styles.sectionTitle}>บริการ</Text>
         <View style={styles.servicesGrid}>
           {services.map((item, index) => (
@@ -215,7 +216,6 @@ export default function HomeScreen({ navigation }) {
           ))}
         </View>
 
-        {/* ===== นัดหมาย / ประกาศ ===== */}
         <Text style={styles.sectionTitle}>ประกาศ / นัดหมาย</Text>
         <View style={styles.appointmentCard}>
           <View style={styles.appointmentRow}>
@@ -231,7 +231,6 @@ export default function HomeScreen({ navigation }) {
           </View>
         </View>
 
-        {/* ===== สถิติโหวต ===== */}
         <Text style={styles.sectionTitle}>สถิติการโหวต</Text>
         <View style={styles.voteStatCard}>
           <View style={styles.voteIconCircle}>
@@ -312,6 +311,21 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginLeft: 10,
+  },
+
+  topActionBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    backgroundColor: '#ffffff',
+    marginLeft: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
   },
 
   iconBtn: {
