@@ -12,11 +12,18 @@ import {
   Modal,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
+import { getDatabase, ref, onValue, runTransaction, get } from 'firebase/database';
+import app from '../firebase';
 
-export default function VoteDetail({ navigation }) {
+export default function VoteDetail({ navigation, route }) {
   const [choice, setChoice] = useState(null); // 'join' | 'not'
   const [modalVisible, setModalVisible] = useState(false);
   const modalTimeoutRef = useRef(null);
+  const [item, setItem] = useState(null);
+  const [modalCount, setModalCount] = useState(null);
+  const [modalProject, setModalProject] = useState('');
+  const [modalPoints, setModalPoints] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     return () => {
@@ -24,12 +31,33 @@ export default function VoteDetail({ navigation }) {
     };
   }, []);
 
+  useEffect(() => {
+    const id = route?.params?.id;
+    if (!id) {
+      // no id passed - keep defaults (existing hardcoded view)
+      setLoading(false);
+      return;
+    }
+
+    const db = getDatabase(app);
+    const itemRef = ref(db, `votes/${id}`);
+    const unsub = onValue(itemRef, (snap) => {
+      const data = snap.val();
+      setItem(data || null);
+      setLoading(false);
+    });
+    return () => unsub();
+  }, [route?.params?.id]);
+
   const handleCloseModal = () => {
     if (modalTimeoutRef.current) {
       clearTimeout(modalTimeoutRef.current);
       modalTimeoutRef.current = null;
     }
     setModalVisible(false);
+    setModalCount(null);
+    setModalProject('');
+    setModalPoints(null);
     navigation.navigate('Vote');
   };
   return (
@@ -44,19 +72,16 @@ export default function VoteDetail({ navigation }) {
 
       <ScrollView contentContainerStyle={styles.content}>
         <Image
-          source={{ uri: 'https://via.placeholder.com/350x140' }}
+          source={{ uri: item?.image || 'https://via.placeholder.com/350x140' }}
           style={styles.banner}
           resizeMode="cover"
         />
 
-        <Text style={styles.title}>โครงการช่วยเปิดปิดนักศึกษาฝึกงาน ปีการศึกษา 2568</Text>
-        <Text style={styles.date}>02 Mar 2026 (00:00) - 15 Mar 2026 (23:59)</Text>
+        <Text style={styles.title}>{item?.title || 'โครงการช่วยเปิดปิดนักศึกษาฝึกงาน ปีการศึกษา 2568'}</Text>
+        <Text style={styles.date}>{item?.date || '02 Mar 2026 (00:00) - 15 Mar 2026 (23:59)'}</Text>
 
         <Text style={styles.sectionHeader}>รายละเอียด</Text>
-        <Text style={styles.description}>
-          รายละเอียดของโครงการตัวอย่างนี้เป็นข้อความตัวอย่าง เพื่อแสดงเลย์เอาต์ของหน้ารายละเอียดการโหวต
-          — คุณสามารถแทนที่ด้วยข้อมูลจริงได้ตามต้องการ
-        </Text>
+        <Text style={styles.description}>{item?.description || 'รายละเอียดของโครงการตัวอย่างนี้เป็นข้อความตัวอย่าง เพื่อแสดงเลย์เอาต์ของหน้ารายละเอียดการโหวต — คุณสามารถแทนที่ด้วยข้อมูลจริงได้ตามต้องการ'}</Text>
 
         <Text style={[styles.sectionHeader, { marginTop: 18 }]}>เข้าร่วมการโหวต</Text>
         <View style={styles.optionsRow}>
@@ -87,11 +112,47 @@ export default function VoteDetail({ navigation }) {
       <View style={styles.footer}>
         <TouchableOpacity
           style={[styles.voteButton, !choice && styles.voteButtonDisabled]}
-          onPress={() => {
+          onPress={async () => {
             if (!choice) return;
+            const id = route?.params?.id;
+            let newCount = null;
+            if (id) {
+              try {
+                const db = getDatabase(app);
+                const countRef = ref(db, `votes/${id}/votesCount`);
+                const result = await runTransaction(countRef, (current) => {
+                  return (current || 0) + 1;
+                });
+                // Prefer reading the snapshot value (call val()). If transaction
+                // didn't return a snapshot, fall back to a one-time get().
+                if (result && result.snapshot && typeof result.snapshot.val === 'function') {
+                  newCount = result.snapshot.val();
+                } else {
+                  try {
+                    const snap = await get(countRef);
+                    newCount = snap.val();
+                  } catch (e) {
+                    newCount = null;
+                  }
+                }
+              } catch (err) {
+                console.error('Vote increment error:', err);
+              }
+            } else {
+              // no id: fallback to local item value
+              newCount = (item?.votesCount || 0) + 1;
+            }
+            setModalCount(newCount);
+            setModalProject(item?.title || route?.params?.title || '');
+            // generate random points between 1 and 5
+            const points = Math.floor(Math.random() * 5) + 1;
+            setModalPoints(points);
             setModalVisible(true);
             modalTimeoutRef.current = setTimeout(() => {
               setModalVisible(false);
+              setModalCount(null);
+              setModalProject('');
+              setModalPoints(null);
               navigation.navigate('Vote');
             }, 1400);
           }}
@@ -115,8 +176,8 @@ export default function VoteDetail({ navigation }) {
                 <View style={styles.ribbonKnot} />
               </View>
             </View>
-            <Text style={styles.modalEarn}>Earned 0 Points</Text>
-            <Text style={styles.modalProject}>โครงการช่วยเปิดปิดนักศึกษาฝึกงาน ปีการศึกษา 2568</Text>
+            <Text style={styles.modalEarn}>{modalPoints != null ? `Earned ${modalPoints} Points` : 'Earned 0 Points'}</Text>
+            <Text style={styles.modalProject}>{modalProject || item?.title || 'โครงการตัวอย่าง'}</Text>
           </View>
         </View>
       </Modal>

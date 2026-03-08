@@ -24,6 +24,14 @@
     },
     "web": {
       "favicon": "./src/assets/favicon.png"
-    }
+    },
+    "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "อนุญาตให้แอปเข้าถึงกล้องเพื่อถ่ายรูปหลักฐาน"
+        }
+      ]
+    ]
   }
 }
