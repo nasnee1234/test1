@@ -31,9 +31,7 @@ export default function VoteScreen({ navigation }) {
   useEffect(() => {
     const unsub = onValue(votesRef, (snapshot) => {
       const data = snapshot.val() || {};
-      console.log('RTDB votes snapshot:', data);
       const list = Object.keys(data).map((key) => ({ id: key, ...data[key] }));
-      // sort by createdAt desc
       list.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
       setVotes(list);
     });
@@ -59,14 +57,25 @@ export default function VoteScreen({ navigation }) {
   };
 
   const handleSave = async () => {
-    if (!titleInput.trim()) return Alert.alert('ข้อผิดพลาด', 'กรุณาใส่ชื่อรายการ');
+    if (!titleInput.trim()) {
+      return Alert.alert('ข้อผิดพลาด', 'กรุณาใส่ชื่อรายการ');
+    }
+
     try {
-      const payload = { title: titleInput, date: dateInput, description: descriptionInput || '', image: imageInput || '', createdAt: Date.now() };
+      const payload = {
+        title: titleInput,
+        date: dateInput,
+        description: descriptionInput || '',
+        image: imageInput || '',
+        createdAt: Date.now(),
+      };
+
       if (editingItem) {
-        // don't overwrite createdAt when editing
         delete payload.createdAt;
         await update(ref(db, `votes/${editingItem.id}`), payload);
       } else {
+        const newVoteRef = await push(votesRef, payload);
+
         await push(ref(db, 'announcements'), {
           title: `มีโหวตใหม่: ${titleInput}`,
           date: dateInput || 'ไม่ระบุวันที่',
@@ -76,6 +85,7 @@ export default function VoteScreen({ navigation }) {
           createdAt: Date.now(),
         });
       }
+
       setModalVisible(false);
       setTitleInput('');
       setDateInput('');
@@ -88,19 +98,15 @@ export default function VoteScreen({ navigation }) {
   };
 
   const handleDelete = (id) => {
-    console.log('handleDelete called for id:', id);
-    // On web Alert.alert may not behave as expected (stacking alerts). Use window.confirm for web.
     if (Platform.OS === 'web' && typeof window !== 'undefined') {
       const ok = window.confirm('ต้องการลบรายการนี้หรือไม่?');
       if (!ok) return;
+
       (async () => {
         try {
-          console.log('Deleting vote id (web):', id);
           await remove(ref(db, `votes/${id}`));
-          console.log('Deleted vote id (web):', id);
           Alert.alert('ลบแล้ว', 'รายการถูกลบเรียบร้อย');
         } catch (err) {
-          console.error('Delete error (web):', err);
           Alert.alert('Error', err.message || 'เกิดข้อผิดพลาด');
         }
       })();
@@ -114,12 +120,9 @@ export default function VoteScreen({ navigation }) {
         style: 'destructive',
         onPress: async () => {
           try {
-            console.log('Deleting vote id:', id);
             await remove(ref(db, `votes/${id}`));
-            console.log('Deleted vote id:', id);
             Alert.alert('ลบแล้ว', 'รายการถูกลบเรียบร้อย');
           } catch (err) {
-            console.error('Delete error:', err);
             Alert.alert('Error', err.message || 'เกิดข้อผิดพลาด');
           }
         },
@@ -142,10 +145,10 @@ export default function VoteScreen({ navigation }) {
       </TouchableOpacity>
 
       <View style={styles.actionsAbsolute} pointerEvents="box-none">
-        <TouchableOpacity onPress={() => openEdit(item)} onPressIn={() => console.log('pressIn edit', item.id)} style={styles.actionButton} hitSlop={{ top: 14, bottom: 14, left: 14, right: 14 }}>
+        <TouchableOpacity onPress={() => openEdit(item)} style={styles.actionButton}>
           <MaterialIcons name="edit" size={18} color="#0b4fe6" />
         </TouchableOpacity>
-        <TouchableOpacity onPress={() => handleDelete(item.id)} onPressIn={() => console.log('pressIn delete', item.id)} style={styles.actionButton} hitSlop={{ top: 14, bottom: 14, left: 14, right: 14 }}>
+        <TouchableOpacity onPress={() => handleDelete(item.id)} style={styles.actionButton}>
           <MaterialIcons name="delete" size={18} color="#e23b3b" />
         </TouchableOpacity>
       </View>
@@ -160,7 +163,7 @@ export default function VoteScreen({ navigation }) {
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Vote</Text>
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-          <TouchableOpacity style={styles.refreshButton} onPress={() => {}}>
+          <TouchableOpacity style={styles.refreshButton}>
             <MaterialIcons name="refresh" size={18} color="#222" />
           </TouchableOpacity>
           <TouchableOpacity style={styles.addButton} onPress={openAdd}>
@@ -182,6 +185,7 @@ export default function VoteScreen({ navigation }) {
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>{editingItem ? 'แก้ไขรายการ' : 'เพิ่มรายการ'}</Text>
+
             <TextInput
               placeholder="ชื่อรายการ"
               style={styles.input}
@@ -207,11 +211,18 @@ export default function VoteScreen({ navigation }) {
               value={imageInput}
               onChangeText={setImageInput}
             />
+
             <View style={{ flexDirection: 'row', marginTop: 8 }}>
-              <TouchableOpacity style={[styles.modalBtn, { marginRight: 8 }]} onPress={() => setModalVisible(false)}>
+              <TouchableOpacity
+                style={[styles.modalBtn, { marginRight: 8 }]}
+                onPress={() => setModalVisible(false)}
+              >
                 <Text style={{ color: '#444' }}>ยกเลิก</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={[styles.modalBtn, { backgroundColor: '#0b4fe6' }]} onPress={handleSave}>
+              <TouchableOpacity
+                style={[styles.modalBtn, { backgroundColor: '#0b4fe6' }]}
+                onPress={handleSave}
+              >
                 <Text style={{ color: '#fff' }}>บันทึก</Text>
               </TouchableOpacity>
             </View>
@@ -243,23 +254,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: '#fff',
   },
-
   listRoot: { padding: 12 },
-  listItem: {
-    backgroundColor: '#fff',
-    borderRadius: 8,
-    paddingVertical: 14,
-    paddingHorizontal: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    elevation: 0,
-  },
   listTextWrap: { flex: 1, paddingRight: 8 },
   listTitle: { fontSize: 14, color: '#222' },
   listDate: { marginTop: 6, fontSize: 12, color: '#777' },
   listItemRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
-  itemActions: { flexDirection: 'row', marginLeft: 8 },
   listItemTouchable: {
     flex: 1,
     backgroundColor: '#fff',
@@ -281,8 +280,15 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   actionButton: { padding: 8 },
-  addButton: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#0b4fe6', alignItems: 'center', justifyContent: 'center', marginLeft: 8 },
-
+  addButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#0b4fe6',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 8,
+  },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center' },
   modalCard: { width: '88%', backgroundColor: '#fff', borderRadius: 12, padding: 16 },
   modalTitle: { fontSize: 16, fontWeight: '700', marginBottom: 8 },

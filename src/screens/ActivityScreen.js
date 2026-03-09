@@ -80,6 +80,8 @@ export default function ActivityScreen({ navigation }) {
         delete payload.createdAt;
         await update(ref(db, `activities/${uid}/${editingItem.id}`), payload);
       } else {
+        const newActivityRef = await push(ref(db, `activities/${uid}`), payload);
+
         await push(ref(db, 'announcements'), {
           title: `มีกิจกรรมใหม่: ${titleInput}`,
           date: dateInput || 'ไม่ระบุวันที่',
