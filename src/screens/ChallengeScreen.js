@@ -13,11 +13,20 @@ import {
   Alert,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
-import { getDatabase, ref, onValue, push, update, remove } from 'firebase/database';
+import {
+  getDatabase,
+  ref,
+  onValue,
+  push,
+  update,
+  remove,
+} from 'firebase/database';
 import app from '../firebase';
+import { useUserAuth } from '../context/UserAuthContext';
 
 export default function ChallengeScreen({ navigation }) {
   const [challenges, setChallenges] = useState([]);
+  const [challengeHistory, setChallengeHistory] = useState({});
   const [modalVisible, setModalVisible] = useState(false);
   const [titleInput, setTitleInput] = useState('');
   const [dateInput, setDateInput] = useState('');
@@ -28,23 +37,30 @@ export default function ChallengeScreen({ navigation }) {
 
   const db = getDatabase(app);
   const challengeRef = ref(db, 'challengeTable');
+  const { user, role } = useUserAuth();
+  const uid = user?.uid || 'guest_user';
 
   useEffect(() => {
-    const unsub = onValue(challengeRef, (snapshot) => {
+    const unsubChallenge = onValue(challengeRef, (snapshot) => {
       const data = snapshot.val() || {};
-      console.log('RTDB challenge snapshot:', data);
-
       const list = Object.keys(data).map((key) => ({
         id: key,
         ...data[key],
       }));
-
       list.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
       setChallenges(list);
     });
 
-    return () => unsub();
-  }, []);
+    const historyRef = ref(db, `challengeHistory/${uid}`);
+    const unsubHistory = onValue(historyRef, (snapshot) => {
+      setChallengeHistory(snapshot.val() || {});
+    });
+
+    return () => {
+      unsubChallenge();
+      unsubHistory();
+    };
+  }, [uid]);
 
   const openAdd = () => {
     setEditingItem(null);
@@ -85,7 +101,16 @@ export default function ChallengeScreen({ navigation }) {
         delete payload.createdAt;
         await update(ref(db, `challengeTable/${editingItem.id}`), payload);
       } else {
-        await push(challengeRef, payload);
+        const newChallengeRef = await push(challengeRef, payload);
+
+        await push(ref(db, 'announcements'), {
+          title: `มี Challenge ใหม่: ${titleInput}`,
+          date: dateInput || 'ไม่ระบุวันที่',
+          detail: `คะแนน ${Number(pointsInput || 0)} คะแนน`,
+          type: 'challenge',
+          relatedId: newChallengeRef.key,
+          createdAt: Date.now(),
+        });
       }
 
       setModalVisible(false);
@@ -96,13 +121,11 @@ export default function ChallengeScreen({ navigation }) {
       setStatusInput('');
       setEditingItem(null);
     } catch (err) {
-      Alert.alert('Error', err.message);
+      Alert.alert('Error', err.message || 'บันทึกไม่สำเร็จ');
     }
   };
 
   const handleDelete = (id) => {
-    console.log('handleDelete challenge id:', id);
-
     if (Platform.OS === 'web' && typeof window !== 'undefined') {
       const ok = window.confirm('ต้องการลบรายการนี้หรือไม่?');
       if (!ok) return;
@@ -112,7 +135,6 @@ export default function ChallengeScreen({ navigation }) {
           await remove(ref(db, `challengeTable/${id}`));
           Alert.alert('ลบแล้ว', 'รายการถูกลบเรียบร้อย');
         } catch (err) {
-          console.error('Delete challenge error (web):', err);
           Alert.alert('Error', err.message || 'เกิดข้อผิดพลาด');
         }
       })();
@@ -129,7 +151,6 @@ export default function ChallengeScreen({ navigation }) {
             await remove(ref(db, `challengeTable/${id}`));
             Alert.alert('ลบแล้ว', 'รายการถูกลบเรียบร้อย');
           } catch (err) {
-            console.error('Delete challenge error:', err);
             Alert.alert('Error', err.message || 'เกิดข้อผิดพลาด');
           }
         },
@@ -137,135 +158,176 @@ export default function ChallengeScreen({ navigation }) {
     ]);
   };
 
-  const renderItem = ({ item }) => (
-    <View style={styles.listItemRow}>
-      <TouchableOpacity
-        style={styles.listItemTouchable}
-        activeOpacity={0.8}
-        onPress={() => navigation.navigate('ChallengeDetail', { challenge: item })}
-      >
-        <View style={styles.listTextWrap}>
-          <Text style={styles.listTitle}>{item.title}</Text>
-          <Text style={styles.listDate}>
-            {item.date} {item.time ? `${item.time}น.` : ''}
-          </Text>
-          <Text style={styles.listStatus}>
-            {item.status || '-'} • {item.points || 0} คะแนน
-          </Text>
-        </View>
-        <MaterialIcons name="chevron-right" size={20} color="#999" />
-      </TouchableOpacity>
+  const getChallengeStatusText = (challengeId) => {
+    return challengeHistory[challengeId] ? 'รับแล้ว' : 'รอรับ';
+  };
 
-      <View style={styles.actionsAbsolute} pointerEvents="box-none">
+  const getChallengeStatusStyle = (challengeId) => {
+    return challengeHistory[challengeId] ? styles.badgeSuccess : styles.badgeWarning;
+  };
+
+  const renderItem = ({ item }) => {
+    const accepted = !!challengeHistory[item.id];
+
+    return (
+      <View style={styles.cardRow}>
         <TouchableOpacity
-          onPress={() => openEdit(item)}
-          style={styles.actionButton}
-          hitSlop={{ top: 14, bottom: 14, left: 14, right: 14 }}
+          style={styles.card}
+          activeOpacity={0.9}
+          onPress={() => navigation.navigate('ChallengeDetail', { id: item.id })}
         >
-          <MaterialIcons name="edit" size={18} color="#0b4fe6" />
+          <View style={styles.cardContent}>
+            <View style={styles.iconCircle}>
+              <MaterialIcons name="emoji-events" size={22} color="#2563EB" />
+            </View>
+
+            <View style={styles.textWrap}>
+              <Text style={styles.title}>{item.title}</Text>
+              <Text style={styles.date}>
+                {item.date || '-'} {item.time ? `${item.time}น.` : ''}
+              </Text>
+
+              {role === 'member' && (
+                <View style={[styles.badge, getChallengeStatusStyle(item.id)]}>
+                  <Text
+                    style={[
+                      styles.badgeText,
+                      accepted ? styles.badgeTextSuccess : styles.badgeTextWarning,
+                    ]}
+                  >
+                    {getChallengeStatusText(item.id)}
+                  </Text>
+                </View>
+              )}
+
+              <Text style={styles.pointsText}>
+                {item.status || '-'} • {item.points || 0} คะแนน
+              </Text>
+            </View>
+
+            <MaterialIcons name="chevron-right" size={22} color="#9CA3AF" />
+          </View>
         </TouchableOpacity>
 
-        <TouchableOpacity
-          onPress={() => handleDelete(item.id)}
-          style={styles.actionButton}
-          hitSlop={{ top: 14, bottom: 14, left: 14, right: 14 }}
-        >
-          <MaterialIcons name="delete" size={18} color="#e23b3b" />
-        </TouchableOpacity>
+        {role === 'admin' && (
+          <View style={styles.adminActions}>
+            <TouchableOpacity onPress={() => openEdit(item)} style={styles.actionBtn}>
+              <MaterialIcons name="edit" size={18} color="#2563EB" />
+            </TouchableOpacity>
+
+            <TouchableOpacity onPress={() => handleDelete(item.id)} style={styles.actionBtn}>
+              <MaterialIcons name="delete" size={18} color="#EF4444" />
+            </TouchableOpacity>
+          </View>
+        )}
       </View>
-    </View>
-  );
+    );
+  };
 
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerLeft}>
-          <MaterialIcons name="arrow-back" size={22} color="#222" />
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerBtn}>
+          <MaterialIcons name="arrow-back" size={22} color="#111827" />
         </TouchableOpacity>
 
         <Text style={styles.headerTitle}>Challenge</Text>
 
-        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-          <TouchableOpacity style={styles.refreshButton} onPress={() => {}}>
-            <MaterialIcons name="refresh" size={18} color="#222" />
+        <View style={styles.headerRight}>
+          <TouchableOpacity style={styles.iconBtn}>
+            <MaterialIcons name="refresh" size={20} color="#374151" />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.addButton} onPress={openAdd}>
-            <MaterialIcons name="add" size={22} color="#fff" />
-          </TouchableOpacity>
+          {role === 'admin' && (
+            <TouchableOpacity style={styles.addButton} onPress={openAdd}>
+              <MaterialIcons name="add" size={22} color="#fff" />
+            </TouchableOpacity>
+          )}
         </View>
       </View>
 
-      <View style={styles.listRoot}>
-        <FlatList
-          data={challenges}
-          keyExtractor={(item) => item.id}
-          renderItem={renderItem}
-          ListEmptyComponent={<Text style={{ color: '#777' }}>ไม่มีรายการ</Text>}
-        />
-      </View>
-
-      <Modal visible={modalVisible} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>
-              {editingItem ? 'แก้ไข Challenge' : 'เพิ่ม Challenge'}
+      <FlatList
+        data={challenges}
+        keyExtractor={(item) => item.id}
+        renderItem={renderItem}
+        contentContainerStyle={styles.listContent}
+        showsVerticalScrollIndicator={false}
+        ListEmptyComponent={
+          <View style={styles.emptyWrap}>
+            <View style={styles.emptyIconCircle}>
+              <MaterialIcons name="emoji-events" size={34} color="#9CA3AF" />
+            </View>
+            <Text style={styles.emptyTitle}>ยังไม่มี Challenge</Text>
+            <Text style={styles.emptySub}>
+              เมื่อมี Challenge ใหม่ ระบบจะแสดงที่หน้านี้
             </Text>
+          </View>
+        }
+      />
 
-            <TextInput
-              placeholder="ชื่อกิจกรรม"
-              style={styles.input}
-              value={titleInput}
-              onChangeText={setTitleInput}
-            />
+      {role === 'admin' && (
+        <Modal visible={modalVisible} transparent animationType="slide">
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalCard}>
+              <Text style={styles.modalTitle}>
+                {editingItem ? 'แก้ไข Challenge' : 'เพิ่ม Challenge'}
+              </Text>
 
-            <TextInput
-              placeholder="วันที่"
-              style={styles.input}
-              value={dateInput}
-              onChangeText={setDateInput}
-            />
+              <TextInput
+                placeholder="ชื่อกิจกรรม"
+                style={styles.input}
+                value={titleInput}
+                onChangeText={setTitleInput}
+              />
 
-            <TextInput
-              placeholder="เวลา"
-              style={styles.input}
-              value={timeInput}
-              onChangeText={setTimeInput}
-            />
+              <TextInput
+                placeholder="วันที่"
+                style={styles.input}
+                value={dateInput}
+                onChangeText={setDateInput}
+              />
 
-            <TextInput
-              placeholder="คะแนน"
-              style={styles.input}
-              value={pointsInput}
-              onChangeText={setPointsInput}
-              keyboardType="numeric"
-            />
+              <TextInput
+                placeholder="เวลา"
+                style={styles.input}
+                value={timeInput}
+                onChangeText={setTimeInput}
+              />
 
-            <TextInput
-              placeholder="สถานะ"
-              style={styles.input}
-              value={statusInput}
-              onChangeText={setStatusInput}
-            />
+              <TextInput
+                placeholder="คะแนน"
+                style={styles.input}
+                value={pointsInput}
+                onChangeText={setPointsInput}
+                keyboardType="numeric"
+              />
 
-            <View style={{ flexDirection: 'row', marginTop: 8 }}>
-              <TouchableOpacity
-                style={[styles.modalBtn, { marginRight: 8 }]}
-                onPress={() => setModalVisible(false)}
-              >
-                <Text style={{ color: '#444' }}>ยกเลิก</Text>
-              </TouchableOpacity>
+              <TextInput
+                placeholder="สถานะ"
+                style={styles.input}
+                value={statusInput}
+                onChangeText={setStatusInput}
+              />
 
-              <TouchableOpacity
-                style={[styles.modalBtn, { backgroundColor: '#0b4fe6' }]}
-                onPress={handleSave}
-              >
-                <Text style={{ color: '#fff' }}>บันทึก</Text>
-              </TouchableOpacity>
+              <View style={styles.modalBtnRow}>
+                <TouchableOpacity
+                  style={[styles.modalBtn, styles.cancelBtn]}
+                  onPress={() => setModalVisible(false)}
+                >
+                  <Text style={styles.cancelText}>ยกเลิก</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.modalBtn, styles.saveBtn]}
+                  onPress={handleSave}
+                >
+                  <Text style={styles.saveText}>บันทึก</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
-        </View>
-      </Modal>
+        </Modal>
+      )}
     </SafeAreaView>
   );
 }
@@ -273,98 +335,194 @@ export default function ChallengeScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f2f3f5',
+    backgroundColor: '#EEF4FF',
     paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
   },
   header: {
-    height: 56,
+    height: 60,
+    backgroundColor: '#EEF4FF',
+    paddingHorizontal: 14,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    backgroundColor: '#fff',
-    borderBottomWidth: 0.5,
-    borderColor: '#e3e3e3',
+    justifyContent: 'space-between',
   },
-  headerLeft: {
-    width: 44,
-    alignItems: 'flex-start',
+  headerBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
   },
   headerTitle: {
     flex: 1,
     textAlign: 'center',
-    fontSize: 18,
-    fontWeight: '700',
+    fontSize: 22,
+    fontWeight: '800',
+    color: '#111827',
   },
-  refreshButton: {
-    width: 44,
-    height: 36,
-    borderRadius: 18,
+  headerRight: {
+    minWidth: 40,
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+  },
+  iconBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#fff',
-  },
-
-  listRoot: {
-    padding: 12,
-  },
-  listTextWrap: {
-    flex: 1,
-    paddingRight: 8,
-  },
-  listTitle: {
-    fontSize: 14,
-    color: '#222',
-  },
-  listDate: {
-    marginTop: 6,
-    fontSize: 12,
-    color: '#777',
-  },
-  listStatus: {
-    marginTop: 6,
-    fontSize: 12,
-    color: '#666',
-    fontWeight: '600',
-  },
-  listItemRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  listItemTouchable: {
-    flex: 1,
-    backgroundColor: '#fff',
-    borderRadius: 8,
-    paddingVertical: 14,
-    paddingHorizontal: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginRight: 80,
-  },
-  actionsAbsolute: {
-    position: 'absolute',
-    right: 12,
-    top: 8,
-    bottom: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
-    zIndex: 10,
-  },
-  actionButton: {
-    padding: 8,
+    shadowColor: '#000',
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
   },
   addButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#0b4fe6',
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#2563EB',
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: '#2563EB',
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 4,
     marginLeft: 8,
   },
-
+  listContent: {
+    paddingHorizontal: 14,
+    paddingBottom: 24,
+    paddingTop: 6,
+  },
+  cardRow: {
+    marginBottom: 12,
+  },
+  card: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 14,
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
+  },
+  cardContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  iconCircle: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: '#EAF2FF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  textWrap: {
+    flex: 1,
+  },
+  title: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#111827',
+    lineHeight: 22,
+  },
+  date: {
+    marginTop: 4,
+    fontSize: 13,
+    color: '#6B7280',
+  },
+  pointsText: {
+    marginTop: 8,
+    fontSize: 12,
+    color: '#64748B',
+    fontWeight: '600',
+  },
+  badge: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 999,
+    marginTop: 10,
+  },
+  badgeSuccess: {
+    backgroundColor: '#ECFDF5',
+  },
+  badgeWarning: {
+    backgroundColor: '#FFF7ED',
+  },
+  badgeText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  badgeTextSuccess: {
+    color: '#16A34A',
+  },
+  badgeTextWarning: {
+    color: '#D97706',
+  },
+  adminActions: {
+    position: 'absolute',
+    right: 14,
+    top: '50%',
+    transform: [{ translateY: -18 }],
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'transparent',
+  },
+  actionBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 6,
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
+  },
+  emptyWrap: {
+    marginTop: 80,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 30,
+  },
+  emptyIconCircle: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 14,
+  },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#111827',
+  },
+  emptySub: {
+    marginTop: 8,
+    textAlign: 'center',
+    fontSize: 13,
+    color: '#6B7280',
+    lineHeight: 20,
+  },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.45)',
@@ -374,27 +532,47 @@ const styles = StyleSheet.create({
   modalCard: {
     width: '88%',
     backgroundColor: '#fff',
-    borderRadius: 12,
+    borderRadius: 16,
     padding: 16,
   },
   modalTitle: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '700',
     marginBottom: 8,
+    color: '#111827',
   },
   input: {
     borderWidth: 1,
-    borderColor: '#e3e3e3',
-    borderRadius: 8,
+    borderColor: '#E5E7EB',
+    borderRadius: 10,
     padding: 10,
     marginTop: 8,
+    backgroundColor: '#fff',
+  },
+  modalBtnRow: {
+    flexDirection: 'row',
+    marginTop: 12,
   },
   modalBtn: {
     flex: 1,
-    height: 40,
-    borderRadius: 8,
-    backgroundColor: '#eee',
+    height: 42,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  cancelBtn: {
+    backgroundColor: '#eee',
+    marginRight: 8,
+  },
+  saveBtn: {
+    backgroundColor: '#2563EB',
+  },
+  cancelText: {
+    color: '#444',
+    fontWeight: '600',
+  },
+  saveText: {
+    color: '#fff',
+    fontWeight: '700',
   },
 });

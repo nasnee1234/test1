@@ -11,6 +11,7 @@ import {
   Alert,
   Platform,
   StatusBar,
+  ScrollView,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { getDatabase, ref, onValue, push, update, remove } from 'firebase/database';
@@ -19,12 +20,14 @@ import { useUserAuth } from '../context/UserAuthContext';
 
 export default function ActivityScreen({ navigation }) {
   const db = getDatabase(app);
-  const { user } = useUserAuth();
+  const { user, role } = useUserAuth();
   const uid = user?.uid || 'guest_user';
 
   const [activities, setActivities] = useState([]);
-  const [modalVisible, setModalVisible] = useState(false);
+  const [formModalVisible, setFormModalVisible] = useState(false);
+  const [detailModalVisible, setDetailModalVisible] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
+  const [selectedItem, setSelectedItem] = useState(null);
 
   const [titleInput, setTitleInput] = useState('');
   const [dateInput, setDateInput] = useState('');
@@ -40,7 +43,7 @@ export default function ActivityScreen({ navigation }) {
     });
 
     return () => unsub();
-  }, [db, uid]);
+  }, [uid]);
 
   const resetForm = () => {
     setTitleInput('');
@@ -51,7 +54,7 @@ export default function ActivityScreen({ navigation }) {
 
   const openAdd = () => {
     resetForm();
-    setModalVisible(true);
+    setFormModalVisible(true);
   };
 
   const openEdit = (item) => {
@@ -59,7 +62,12 @@ export default function ActivityScreen({ navigation }) {
     setTitleInput(item.title || '');
     setDateInput(item.date || '');
     setDetailInput(item.detail || '');
-    setModalVisible(true);
+    setFormModalVisible(true);
+  };
+
+  const openDetail = (item) => {
+    setSelectedItem(item);
+    setDetailModalVisible(true);
   };
 
   const handleSave = async () => {
@@ -92,7 +100,7 @@ export default function ActivityScreen({ navigation }) {
         });
       }
 
-      setModalVisible(false);
+      setFormModalVisible(false);
       resetForm();
     } catch (err) {
       Alert.alert('Error', err.message || 'บันทึกไม่สำเร็จ');
@@ -112,7 +120,6 @@ export default function ActivityScreen({ navigation }) {
           Alert.alert('Error', err.message || 'เกิดข้อผิดพลาด');
         }
       })();
-
       return;
     }
 
@@ -134,21 +141,33 @@ export default function ActivityScreen({ navigation }) {
   };
 
   const renderItem = ({ item }) => (
-    <View style={styles.itemRow}>
-      <View style={styles.itemCard}>
-        <View style={styles.left}>
-          <View style={styles.iconCircle}>
-            <MaterialIcons name="event-available" size={22} color="#2563EB" />
+    <View style={styles.cardRow}>
+      <TouchableOpacity
+        activeOpacity={0.92}
+        style={styles.newsCard}
+        onPress={() => openDetail(item)}
+      >
+        <View style={styles.newsTop}>
+          <View style={styles.iconWrap}>
+            <MaterialIcons name="event-available" size={28} color="#2563EB" />
           </View>
 
-          <View style={styles.textWrap}>
-            <Text style={styles.title}>{item.title}</Text>
-            <Text style={styles.sub}>{item.date || '-'}</Text>
-            {!!item.detail && <Text style={styles.detail}>{item.detail}</Text>}
+          <View style={styles.newsTextWrap}>
+            <Text style={styles.newsTitle}>{item.title}</Text>
+            <Text style={styles.newsMeta}>{item.date || '-'}</Text>
+            {!!item.detail && (
+              <Text style={styles.newsExcerpt} numberOfLines={3}>
+                {item.detail}
+              </Text>
+            )}
           </View>
+
+          <MaterialIcons name="chevron-right" size={24} color="#9CA3AF" />
         </View>
+      </TouchableOpacity>
 
-        <View style={styles.actions}>
+      {role === 'admin' && (
+        <View style={styles.adminActions}>
           <TouchableOpacity onPress={() => openEdit(item)} style={styles.actionBtn}>
             <MaterialIcons name="edit" size={18} color="#2563EB" />
           </TouchableOpacity>
@@ -157,42 +176,47 @@ export default function ActivityScreen({ navigation }) {
             <MaterialIcons name="delete" size={18} color="#EF4444" />
           </TouchableOpacity>
         </View>
-      </View>
+      )}
     </View>
   );
 
   return (
-    <SafeAreaView style={styles.pageContainer}>
+    <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerBtn}>
           <MaterialIcons name="arrow-back" size={22} color="#111827" />
         </TouchableOpacity>
 
-        <Text style={styles.pageTitle}>กิจกรรม</Text>
+        <Text style={styles.headerTitle}>กิจกรรม</Text>
 
-        <TouchableOpacity style={styles.addButton} onPress={openAdd}>
-          <MaterialIcons name="add" size={22} color="#fff" />
-        </TouchableOpacity>
+        <View style={styles.headerRight}>
+          {role === 'admin' && (
+            <TouchableOpacity style={styles.addButton} onPress={openAdd}>
+              <MaterialIcons name="add" size={22} color="#fff" />
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
 
       <FlatList
         data={activities}
         keyExtractor={(item) => item.id}
         renderItem={renderItem}
-        contentContainerStyle={{ padding: 16, paddingBottom: 30 }}
+        contentContainerStyle={styles.listContent}
         ListEmptyComponent={
           <View style={styles.emptyWrap}>
             <MaterialIcons name="event-busy" size={46} color="#9CA3AF" />
-            <Text style={styles.emptyText}>ยังไม่มีกิจกรรม</Text>
+            <Text style={styles.emptyTitle}>ยังไม่มีกิจกรรม</Text>
+            <Text style={styles.emptySub}>ข่าวกิจกรรมจะถูกแสดงที่หน้านี้</Text>
           </View>
         }
       />
 
-      <Modal visible={modalVisible} transparent animationType="slide">
+      <Modal visible={formModalVisible} transparent animationType="slide">
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>
-              {editingItem ? 'แก้ไขกิจกรรม' : 'เพิ่มกิจกรรม'}
+              {editingItem ? 'แก้ไขข่าวกิจกรรม' : 'เพิ่มข่าวกิจกรรม'}
             </Text>
 
             <TextInput
@@ -211,7 +235,7 @@ export default function ActivityScreen({ navigation }) {
 
             <TextInput
               placeholder="รายละเอียด"
-              style={[styles.input, { height: 80 }]}
+              style={[styles.input, { height: 110 }]}
               value={detailInput}
               onChangeText={setDetailInput}
               multiline
@@ -219,22 +243,47 @@ export default function ActivityScreen({ navigation }) {
 
             <View style={styles.modalBtnRow}>
               <TouchableOpacity
-                style={[styles.modalBtn, { marginRight: 8 }]}
+                style={[styles.modalBtn, styles.cancelBtn]}
                 onPress={() => {
-                  setModalVisible(false);
+                  setFormModalVisible(false);
                   resetForm();
                 }}
               >
-                <Text style={{ color: '#444' }}>ยกเลิก</Text>
+                <Text style={styles.cancelText}>ยกเลิก</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={[styles.modalBtn, { backgroundColor: '#2563EB' }]}
+                style={[styles.modalBtn, styles.saveBtn]}
                 onPress={handleSave}
               >
-                <Text style={{ color: '#fff' }}>บันทึก</Text>
+                <Text style={styles.saveText}>บันทึก</Text>
               </TouchableOpacity>
             </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal visible={detailModalVisible} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalCard, { maxHeight: '80%' }]}>
+            <View style={styles.detailHeader}>
+              <Text style={styles.modalTitle}>รายละเอียดกิจกรรม</Text>
+              <TouchableOpacity onPress={() => setDetailModalVisible(false)}>
+                <MaterialIcons name="close" size={22} color="#374151" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <View style={styles.detailHero}>
+                <MaterialIcons name="event-available" size={34} color="#2563EB" />
+              </View>
+
+              <Text style={styles.detailTitle}>{selectedItem?.title || '-'}</Text>
+              <Text style={styles.detailMeta}>{selectedItem?.date || '-'}</Text>
+              <Text style={styles.detailBody}>
+                {selectedItem?.detail || 'ไม่มีรายละเอียดเพิ่มเติม'}
+              </Text>
+            </ScrollView>
           </View>
         </View>
       </Modal>
@@ -243,95 +292,125 @@ export default function ActivityScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  pageContainer: {
+  container: {
     flex: 1,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: '#EEF4FF',
     paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
   },
   header: {
-    height: 56,
-    backgroundColor: '#fff',
-    paddingHorizontal: 12,
-    borderBottomWidth: 0.5,
-    borderColor: '#E5E7EB',
+    height: 60,
+    backgroundColor: '#EEF4FF',
+    paddingHorizontal: 14,
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    justifyContent: 'space-between',
   },
   headerBtn: {
     width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: '#fff',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  pageTitle: {
-    fontSize: 22,
+  headerTitle: {
+    flex: 1,
+    textAlign: 'center',
+    fontSize: 24,
     fontWeight: '800',
     color: '#111827',
   },
+  headerRight: {
+    minWidth: 40,
+    alignItems: 'flex-end',
+  },
   addButton: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     backgroundColor: '#2563EB',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  itemRow: {
-    marginBottom: 12,
+  listContent: {
+    paddingHorizontal: 14,
+    paddingBottom: 24,
+    paddingTop: 6,
   },
-  itemCard: {
-    backgroundColor: '#fff',
-    borderRadius: 18,
-    padding: 14,
+  cardRow: {
+    marginBottom: 14,
+  },
+  newsCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    padding: 18,
+    elevation: 2,
+  },
+  newsTop: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
   },
-  left: {
-    flexDirection: 'row',
-    flex: 1,
-  },
-  iconCircle: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
-    backgroundColor: '#EFF6FF',
+  iconWrap: {
+    width: 62,
+    height: 62,
+    borderRadius: 31,
+    backgroundColor: '#EAF2FF',
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
+    marginRight: 14,
   },
-  textWrap: {
+  newsTextWrap: {
     flex: 1,
+    paddingRight: 8,
   },
-  title: {
-    fontSize: 15,
-    fontWeight: '700',
+  newsTitle: {
+    fontSize: 20,
+    fontWeight: '800',
     color: '#111827',
+    lineHeight: 28,
   },
-  sub: {
-    marginTop: 4,
-    fontSize: 12,
+  newsMeta: {
+    marginTop: 8,
+    fontSize: 13,
     color: '#6B7280',
   },
-  detail: {
-    marginTop: 6,
-    fontSize: 12,
+  newsExcerpt: {
+    marginTop: 10,
+    fontSize: 14,
     color: '#4B5563',
+    lineHeight: 22,
   },
-  actions: {
+  adminActions: {
+    position: 'absolute',
+    right: 16,
+    top: 16,
     flexDirection: 'row',
-    marginLeft: 10,
+    alignItems: 'center',
   },
   actionBtn: {
-    padding: 8,
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    backgroundColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 8,
+    elevation: 2,
   },
   emptyWrap: {
     marginTop: 100,
     alignItems: 'center',
   },
-  emptyText: {
-    marginTop: 10,
-    fontSize: 16,
+  emptyTitle: {
+    marginTop: 12,
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#111827',
+  },
+  emptySub: {
+    marginTop: 8,
+    textAlign: 'center',
+    fontSize: 13,
     color: '#6B7280',
   },
   modalOverlay: {
@@ -343,31 +422,80 @@ const styles = StyleSheet.create({
   modalCard: {
     width: '88%',
     backgroundColor: '#fff',
-    borderRadius: 16,
+    borderRadius: 18,
     padding: 16,
   },
   modalTitle: {
     fontSize: 18,
-    fontWeight: '700',
+    fontWeight: '800',
     marginBottom: 8,
+    color: '#111827',
   },
   input: {
     borderWidth: 1,
     borderColor: '#E5E7EB',
-    borderRadius: 10,
-    padding: 10,
+    borderRadius: 12,
+    padding: 12,
     marginTop: 8,
+    backgroundColor: '#fff',
   },
   modalBtnRow: {
     flexDirection: 'row',
-    marginTop: 10,
+    marginTop: 12,
   },
   modalBtn: {
     flex: 1,
-    height: 42,
-    borderRadius: 10,
-    backgroundColor: '#eee',
+    height: 44,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  cancelBtn: {
+    backgroundColor: '#eee',
+    marginRight: 8,
+  },
+  saveBtn: {
+    backgroundColor: '#2563EB',
+  },
+  cancelText: {
+    color: '#444',
+    fontWeight: '600',
+  },
+  saveText: {
+    color: '#fff',
+    fontWeight: '700',
+  },
+  detailHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  detailHero: {
+    width: 76,
+    height: 76,
+    borderRadius: 38,
+    backgroundColor: '#EAF2FF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 10,
+    marginBottom: 18,
+    alignSelf: 'center',
+  },
+  detailTitle: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: '#111827',
+    lineHeight: 32,
+  },
+  detailMeta: {
+    marginTop: 12,
+    fontSize: 14,
+    color: '#6B7280',
+  },
+  detailBody: {
+    marginTop: 18,
+    fontSize: 15,
+    color: '#374151',
+    lineHeight: 25,
   },
 });
