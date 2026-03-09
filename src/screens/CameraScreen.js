@@ -51,7 +51,7 @@ export default function CameraScreen({ navigation, route }) {
 
       // เก็บเฉพาะข้อมูลวันเวลา ไม่อัปโหลดรูป
       const now = new Date();
-      const newLogRef = push(ref(db, `/cameraLogs${uid}`));
+      const newLogRef = push(ref(db, `/cameraLogs`));
 
       await set(newLogRef, {
         challengeId,

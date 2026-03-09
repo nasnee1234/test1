@@ -19,6 +19,12 @@ import Register from './src/screens/Register';
 import ChallengeDetailScreen from './src/screens/ChallengeDetailScreen';
 import SearchScreen from './src/screens/SearchScreen';
 import FormScreen from './src/screens/FormScreen';
+import CardRightScreen from './src/screens/CardRightScreen';
+import CalendarScreen from './src/screens/CalendarScreen';
+import LocationScreen from './src/screens/LocationScreen';
+import ActivityScreen from './src/screens/ActivityScreen';
+import AnnouncementScreen from './src/screens/AnnouncementScreen';
+import AnnouncementAdminScreen from './src/screens/AnnouncementAdminScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -127,6 +133,12 @@ export default function App() {
           <Stack.Screen name="ChallengeDetail" component={ChallengeDetailScreen} />
           <Stack.Screen name="Search" component={SearchScreen} />
           <Stack.Screen name="Form" component={FormScreen} />
+          <Stack.Screen name="CardRight" component={CardRightScreen} />
+          <Stack.Screen name="Calendar" component={CalendarScreen} />
+          <Stack.Screen name="Location" component={LocationScreen} />
+          <Stack.Screen name="Activity" component={ActivityScreen} />
+          <Stack.Screen name="Announcements" component={AnnouncementScreen} />
+          <Stack.Screen name="AnnouncementAdmin" component={AnnouncementAdminScreen} />
         </Stack.Navigator>
         <StatusBar style="auto" />
       </NavigationContainer>

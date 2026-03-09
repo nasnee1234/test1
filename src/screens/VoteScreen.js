@@ -67,7 +67,14 @@ export default function VoteScreen({ navigation }) {
         delete payload.createdAt;
         await update(ref(db, `votes/${editingItem.id}`), payload);
       } else {
-        await push(votesRef, payload);
+        await push(ref(db, 'announcements'), {
+          title: `มีโหวตใหม่: ${titleInput}`,
+          date: dateInput || 'ไม่ระบุวันที่',
+          detail: descriptionInput || 'มีรายการโหวตใหม่ในระบบ',
+          type: 'vote',
+          relatedId: newVoteRef.key,
+          createdAt: Date.now(),
+        });
       }
       setModalVisible(false);
       setTitleInput('');

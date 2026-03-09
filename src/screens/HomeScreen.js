@@ -17,11 +17,14 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { useUserAuth } from '../context/UserAuthContext';
 import { getDatabase, ref, onValue } from 'firebase/database';
 import app from '../firebase';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const { width } = Dimensions.get('window');
 
 export default function HomeScreen({ navigation }) {
   const [votesCount, setVotesCount] = useState(0);
+  const [announcementCount, setAnnouncementCount] = useState(0);
+  const [unreadCount, setUnreadCount] = useState(0);
   const { logOut, logout, user } = useUserAuth();
 
   const newsBanners = [
@@ -53,20 +56,36 @@ export default function HomeScreen({ navigation }) {
 
   useEffect(() => {
     const db = getDatabase(app);
-    const votesRef = ref(db, 'votes');
+    const annRef = ref(db, 'announcements');
+    const uid = user?.uid || 'guest_user';
 
-    const unsub = onValue(votesRef, (snap) => {
-      const data = snap.val() || {};
-      const count = Object.keys(data).reduce((sum, k) => {
-        const v = data[k];
-        return sum + (v && v.votesCount ? Number(v.votesCount) : 0);
-      }, 0);
+    const unsub = onValue(annRef, async (snapshot) => {
+      const data = snapshot.val() || {};
+      const list = Object.keys(data).map((key) => ({
+        id: key,
+        ...data[key],
+      }));
 
-      setVotesCount(count);
+      list.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+      setAnnouncementCount(list.length);
+
+      try {
+        const lastSeen = await AsyncStorage.getItem(`announcement_seen_at_${uid}`);
+        const lastSeenNumber = Number(lastSeen || 0);
+
+        const unread = list.filter(
+          (item) => Number(item.createdAt || 0) > lastSeenNumber
+        ).length;
+
+        setUnreadCount(unread);
+      } catch (error) {
+        console.log('announcement read error:', error);
+        setUnreadCount(list.length);
+      }
     });
 
     return () => unsub();
-  }, []);
+  }, [user]);
 
   const handleLogout = async () => {
     try {
@@ -113,10 +132,10 @@ export default function HomeScreen({ navigation }) {
   const services = [
     { label: 'แบบฟอร์ม', icon: 'edit-note', action: () => navigation.navigate('Form') },
     { label: 'โหวต', icon: 'how-to-vote', action: () => navigation.navigate('Vote') },
-    { label: 'บัตร/สิทธิ์', icon: 'badge', action: () => navigation.navigate('Card') },
-    { label: 'ปฏิทิน', icon: 'calendar-month', action: () => Alert.alert('เมนูปฏิทิน', 'ยังไม่ได้สร้างหน้าปฏิทิน') },
-    { label: 'สถานที่', icon: 'place', action: () => Alert.alert('เมนูสถานที่', 'ยังไม่ได้สร้างหน้าสถานที่') },
-    { label: 'กิจกรรม', icon: 'event-available', action: () => navigation.navigate('Challenge') },
+    { label: 'บัตร/สิทธิ์', icon: 'badge', action: () => navigation.navigate('CardRight') },
+    { label: 'ปฏิทิน', icon: 'calendar-month', action: () => navigation.navigate('Calendar') },
+    { label: 'สถานที่', icon: 'place', action: () => navigation.navigate('Location') },
+    { label: 'กิจกรรม', icon: 'event-available', action: () => navigation.navigate('Activity') },
   ];
 
   return (
@@ -153,8 +172,18 @@ export default function HomeScreen({ navigation }) {
             <MaterialIcons name="search" size={22} color="#2563EB" />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.iconBtn}>
+          <TouchableOpacity
+            style={styles.iconBtn}
+            onPress={() => navigation.navigate('Announcements')}>
             <MaterialIcons name="notifications-none" size={20} color="#1e3a8a" />
+
+            {unreadCount > 0 && (
+              <View style={styles.notificationBadge}>
+                <Text style={styles.notificationBadgeText}>
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </Text>
+              </View>
+            )}
           </TouchableOpacity>
 
           {user ? (
@@ -341,6 +370,24 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     shadowOffset: { width: 0, height: 2 },
     elevation: 2,
+  },
+
+    notificationBadge: {
+      position: 'absolute',
+      top: -4,
+      right: -4,
+      minWidth: 18,
+      height: 18,
+      borderRadius: 9,
+      backgroundColor: '#EF4444',
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingHorizontal: 4,
+  },
+    notificationBadgeText: {
+      color: '#fff',
+      fontSize: 10,
+      fontWeight: '800',
   },
 
   content: {
