@@ -25,6 +25,7 @@ import LocationScreen from './src/screens/LocationScreen';
 import ActivityScreen from './src/screens/ActivityScreen';
 import AnnouncementScreen from './src/screens/AnnouncementScreen';
 import AnnouncementAdminScreen from './src/screens/AnnouncementAdminScreen';
+import VoteHistoryScreen from "./src/screens/VoteHistoryScreen";
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -139,6 +140,7 @@ export default function App() {
           <Stack.Screen name="Activity" component={ActivityScreen} />
           <Stack.Screen name="Announcements" component={AnnouncementScreen} />
           <Stack.Screen name="AnnouncementAdmin" component={AnnouncementAdminScreen} />
+          <Stack.Screen name="VoteHistory" component={VoteHistoryScreen}/>
         </Stack.Navigator>
         <StatusBar style="auto" />
       </NavigationContainer>

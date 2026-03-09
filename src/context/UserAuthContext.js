@@ -1,40 +1,41 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState } from "react";
 import {
-  createUserWithEmailAndPassword,
-  signInWithEmailAndPassword,
-  signOut,
   onAuthStateChanged,
-} from 'firebase/auth';
-import { getDatabase, ref, get, set } from 'firebase/database';
-import { auth } from '../firebase';
-import app from '../firebase';
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  signOut,
+} from "firebase/auth";
+import { getDatabase, ref, get, set } from "firebase/database";
+import { auth } from "../firebase";
+import app from "../firebase";
 
-const userAuthContext = createContext();
+const UserAuthContext = createContext();
 
 export function UserAuthContextProvider({ children }) {
   const [user, setUser] = useState(null);
-  const [role, setRole] = useState('user');
+  const [role, setRole] = useState("member");
+
   const db = getDatabase(app);
 
-  function login(email, password) {
+  const login = (email, password) => {
     return signInWithEmailAndPassword(auth, email, password);
-  }
+  };
 
-  async function signUp(email, password) {
+  const signUp = async (email, password) => {
     const cred = await createUserWithEmailAndPassword(auth, email, password);
 
     await set(ref(db, `users/${cred.user.uid}`), {
       email,
-      role: 'user',
+      role: "member",
       createdAt: Date.now(),
     });
 
     return cred;
-  }
+  };
 
-  function logOut() {
+  const logOut = () => {
     return signOut(auth);
-  }
+  };
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
@@ -43,27 +44,30 @@ export function UserAuthContextProvider({ children }) {
       if (currentUser) {
         try {
           const snap = await get(ref(db, `users/${currentUser.uid}`));
-          const data = snap.val();
-          setRole(data?.role || 'user');
+          if (snap.exists()) {
+            setRole(snap.val().role || "member");
+          } else {
+            setRole("member");
+          }
         } catch (error) {
-          console.log('read role error:', error);
-          setRole('user');
+          console.log("read role error:", error);
+          setRole("member");
         }
       } else {
-        setRole('user');
+        setRole("member");
       }
     });
 
-    return () => unsubscribe();
+    return unsubscribe;
   }, []);
 
   return (
-    <userAuthContext.Provider value={{ user, role, login, signUp, logOut }}>
+    <UserAuthContext.Provider value={{ user, role, login, signUp, logOut }}>
       {children}
-    </userAuthContext.Provider>
+    </UserAuthContext.Provider>
   );
 }
 
 export function useUserAuth() {
-  return useContext(userAuthContext);
+  return useContext(UserAuthContext);
 }
